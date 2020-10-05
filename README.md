@@ -1,11 +1,10 @@
-# DR2: Light and Shadows
+# DR3: Planes and Cubes
 
-- Implementación de un Phong Reflection Model.
-- Dibujar sombras de las esferas en otras superficies.
+- Dibujar planos y cubos con un RayTracer.
 
 ## Como ejecutar el codigo
 
-Descargue el repositorio [DR2: Light and Shadows](https://github.com/juanferdeleon/DR2-Light-and-Shadows)
+Descargue el repositorio [DR3: Planes and Cubes](https://github.com/juanferdeleon/DR3-Planes-and-Cubes)
 
 Luego ejecute el archivo [Raytracer.py](/Raytracer.py) dentro de cualquier IDE.
 
