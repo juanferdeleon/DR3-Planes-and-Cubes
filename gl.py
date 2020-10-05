@@ -17,6 +17,11 @@ from random import uniform as randomDec
 from obj import ObjReader
 from arithmetics import *
 
+OPAQUE = 0
+REFLECTIVE = 1
+TRANSPARENT = 2
+MAX_RECURSION_DEPTH = 3
+
 def char(c):
     '''1 Byte'''
 
@@ -53,6 +58,52 @@ def barycentric(A, B, C, P):
 
     return  w, v, u
 
+def reflectVector(normal, dirVector):
+    reflect = 2 * dot(normal, dirVector)
+    reflect = mult(reflect, normal)
+    reflect = sub(reflect, dirVector)
+    reflect = reflect / magnitud(reflect)
+    return reflect
+
+def refractVector(N, I, ior):
+    cosi = max(-1, min(1, dot(I, N)))
+    etai = 1
+    etat = ior
+
+    if cosi < 0:
+        cosi = -cosi
+    else:
+        etai, etat = etat, etai
+        N = mult(N, -1)
+    
+    eta = etai / etat
+    k = 1 - eta * eta * (1 - (cosi * cosi))
+
+    if k < 0:
+        return None
+    
+    R = eta * I + (eta * cosi - k**0.5) * N
+    return R / magnitud(R)
+
+def fresnel(N, I, ior):
+    cosi = max(-1, min(1, dot(I, N)))
+    etai = 1
+    etat = ior
+
+    if cosi > 0:
+        etai, etat = etat, etai
+    
+    sint = etai / etat * (max(0, 1 - cosi * cosi) ** 0.5)
+
+    if sint >= 1:
+        return 1
+    
+    cost = max(0, 1 - sint * sint) ** 0.5
+    cosi = abs(cosi)
+    Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost))
+    Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost))
+    return (Rs * Rs + Rp * Rp) / 2
+
 BLACK = color(0,0,0)
 WHITE = color(1,1,1)
 PI = 3.14159265359
@@ -74,6 +125,8 @@ class Raytracer(object):
 
         self.pointLight = None
         self.ambientLight = None
+
+        self.envmap = None
 
     def glInit(self):
         '''Initialize any internal objects that your renderer software requires'''
@@ -263,20 +316,145 @@ class Raytracer(object):
                 direction = V3(Px, Py, -1)
                 direction = div(direction, magnitud(direction))
 
-                material = None
-                intersect = None
+                self.glVertex_coord(x, y, self.castRay(self.camPosition, direction))
 
-                for obj in self.scene:
-                    hit = obj.ray_intersect(self.camPosition, direction)
-                    if hit is not None:
-                        if hit.distance < self.zbuffer[y][x]:
-                            self.zbuffer[y][x] = hit.distance
-                            material = obj.material
-                            intersect = hit
+                # material = None
+                # intersect = None
 
-                if material is not None:
-                    self.glVertex_coord(x, y, self.pointColor(material, intersect))
-    
+                # for obj in self.scene:
+                #     hit = obj.ray_intersect(self.camPosition, direction)
+                #     if hit is not None:
+                #         if hit.distance < self.zbuffer[y][x]:
+                #             self.zbuffer[y][x] = hit.distance
+                #             material = obj.material
+                #             intersect = hit
+
+                # if material is not None:
+                #     self.glVertex_coord(x, y, self.pointColor(material, intersect))
+
+    def scene_intercept(self, orig, direction, origObj = None):
+        tempZbuffer = float('inf')
+
+        material = None
+        intersect = None
+
+        for ibj in self.scene:
+            if obj is not origObj:
+                hit = obj.ray_intersect(orig, direction)
+                if hit is not None:
+                    if hit.distance < tempZbuffer:
+                        tempZbuffer = hit.distance
+                        material = obj.material
+                        intersect = hit
+        
+        return material, intersect
+
+    def castRay(self, orig, direction, origObj = None, recursion = 0):
+
+        material, intersect = self.scene_intercept(orig, direction, origObj)
+
+        if material is None or recursion >= MAX_RECURSION_DEPTH:
+            if self.envmap:
+                return self.envmap.getColor(direction)
+            return self.clear_color
+
+        objectColor = V3(material.diffuse[2] / 255, material.diffuse[1] / 255, material.diffuse[0] / 255)
+
+        ambientColor = V3(0,0,0)
+        diffuseColor = V3(0,0,0)
+        specColor = V3(0,0,0)
+
+        reflectColor = V3(0,0,0)
+        refractColor = V3(0,0,0)
+
+        finalColor = V3(0,0,0)
+
+        shadow_intensity = 0
+
+        # Direccion de vista
+        view_dir = sub(self.camPosition, intersect.point)
+        view_dir = view_dir / magnitud(view_dir)
+
+        if self.ambientLight:
+            ambientColor = V3(self.ambientLight.strength * self.ambientLight.color[2] / 255,
+                                     self.ambientLight.strength * self.ambientLight.color[1] / 255,
+                                     self.ambientLight.strength * self.ambientLight.color[0] / 255)
+
+        if self.pointLight:
+            # Sacamos la direccion de la luz para este punto
+            light_dir = sub(self.pointLight.position, intersect.point)
+            light_dir = light_dir / magnitud(light_dir)
+
+            # Calculamos el valor del diffuse color
+            intensity = self.pointLight.intensity * max(0, dot(light_dir, intersect.normal))
+            diffuseColor = V3(intensity * self.pointLight.color[2] / 255,
+                                     intensity * self.pointLight.color[1] / 255,
+                                     intensity * self.pointLight.color[2] / 255)
+
+            # Iluminacion especular
+            reflect = reflectVector(intersect.normal, light_dir) # Reflejar el vector de luz
+
+            # spec_intensity: lightIntensity * ( view_dir dot reflect) ** especularidad
+            spec_intensity = self.pointLight.intensity * (max(0, dot(view_dir, reflect)) ** material.spec)
+            specColor = V3(spec_intensity * self.pointLight.color[2] / 255,
+                                  spec_intensity * self.pointLight.color[1] / 255,
+                                  spec_intensity * self.pointLight.color[0] / 255)
+
+
+            shadMat, shadInter = self.scene_intercept(intersect.point,  light_dir, intersect.sceneObject)
+            if shadInter is not None and shadInter.distance < magnitud(sub(self.pointLight.position, intersect.point)):
+                shadow_intensity = 1
+
+        
+        if material.matType == OPAQUE:
+            # Formula de iluminacion, PHONG
+            finalColor = (ambientColor + (1 - shadow_intensity) * (diffuseColor + specColor))
+        elif material.matType == REFLECTIVE:
+            reflect = reflectVector(intersect.normal, V3(direction) * -1)
+            reflectColor = self.castRay(intersect.point, reflect, intersect.sceneObject, recursion + 1)
+            reflectColor = V3(reflectColor[2] / 255,
+                                     reflectColor[1] / 255,
+                                     reflectColor[0] / 255)
+
+            finalColor = reflectColor + (1 - shadow_intensity) * specColor
+
+        elif material.matType == TRANSPARENT:
+
+            outside = dot(direction, intersect.normal) < 0
+            bias = 0.001 * intersect.normal
+            kr = fresnel(intersect.normal, direction, material.ior)
+
+            reflect = reflectVector(intersect.normal, V3(direction) * -1)
+            reflectOrig = sum(intersect.point, bias) if outside else sub(intersect.point, bias)
+            reflectColor = self.castRay(reflectOrig, reflect, None, recursion + 1)
+            reflectColor = V3(reflectColor[2] / 255,
+                                     reflectColor[1] / 255,
+                                     reflectColor[0] / 255)
+
+            if kr < 1:
+                refract = refractVector(intersect.normal, direction, material.ior)
+                refractOrig = sub(intersect.point, bias) if outside else sum(intersect.point, bias)
+                refractColor = self.castRay(refractOrig, refract, None, recursion + 1)
+                refractColor = V3(refractColor[2] / 255,
+                                         refractColor[1] / 255,
+                                         refractColor[0] / 255)
+
+
+            finalColor = reflectColor * kr + refractColor * (1 - kr) + (1 - shadow_intensity) * specColor
+
+
+
+        # Le aplicamos el color del objeto
+        finalColor *= objectColor
+
+        #Nos aseguramos que no suba el valor de color de 1
+        r = min(1,finalColor[0])
+        g = min(1,finalColor[1])
+        b = min(1,finalColor[2])
+
+        return color(r, g, b)
+
+
     def pointColor(self, material, intersect):
 
         objectColor = V3(material.diffuse[2] / 255, material.diffuse[1] / 255, material.diffuse[0] / 255)
