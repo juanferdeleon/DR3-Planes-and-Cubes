@@ -8,8 +8,10 @@ Creado por:
 - Env Map Class
 
 '''
-
+import struct
+from gl import color
 from math import acos, atan2
+from arithmetics import *
 
 PI = 3.14159265359
 
@@ -43,7 +45,7 @@ class Envmap(object):
 
     def getColor(self, direction):
         
-        direction = direction / magnitud(direction)
+        direction = div(direction, magnitud(direction))
 
         x = int( (atan2( direction[2], direction[0]) / (2 * PI) + 0.5) * self.width)
         y = int( acos(-direction[1]) / PI * self.height )

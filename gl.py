@@ -60,9 +60,9 @@ def barycentric(A, B, C, P):
 
 def reflectVector(normal, dirVector):
     reflect = 2 * dot(normal, dirVector)
-    reflect = mult(reflect, normal)
+    reflect = mul(normal, reflect)
     reflect = sub(reflect, dirVector)
-    reflect = reflect / magnitud(reflect)
+    reflect = div(reflect, magnitud(reflect))
     return reflect
 
 def refractVector(N, I, ior):
@@ -74,7 +74,7 @@ def refractVector(N, I, ior):
         cosi = -cosi
     else:
         etai, etat = etat, etai
-        N = mult(N, -1)
+        N = mul(N, -1)
     
     eta = etai / etat
     k = 1 - eta * eta * (1 - (cosi * cosi))
@@ -82,8 +82,9 @@ def refractVector(N, I, ior):
     if k < 0:
         return None
     
-    R = eta * I + (eta * cosi - k**0.5) * N
-    return R / magnitud(R)
+    #R = eta * I + (eta * cosi - k**0.5) * N
+    R = sum(mul(I, eta), mul(N, (eta * cosi - k**0.5)))
+    return div(R, magnitud(R))
 
 def fresnel(N, I, ior):
     cosi = max(-1, min(1, dot(I, N)))
@@ -338,7 +339,7 @@ class Raytracer(object):
         material = None
         intersect = None
 
-        for ibj in self.scene:
+        for obj in self.scene:
             if obj is not origObj:
                 hit = obj.ray_intersect(orig, direction)
                 if hit is not None:
@@ -373,7 +374,7 @@ class Raytracer(object):
 
         # Direccion de vista
         view_dir = sub(self.camPosition, intersect.point)
-        view_dir = view_dir / magnitud(view_dir)
+        view_dir = div(view_dir, magnitud(view_dir))
 
         if self.ambientLight:
             ambientColor = V3(self.ambientLight.strength * self.ambientLight.color[2] / 255,
@@ -383,7 +384,7 @@ class Raytracer(object):
         if self.pointLight:
             # Sacamos la direccion de la luz para este punto
             light_dir = sub(self.pointLight.position, intersect.point)
-            light_dir = light_dir / magnitud(light_dir)
+            light_dir = div(light_dir, magnitud(light_dir))
 
             # Calculamos el valor del diffuse color
             intensity = self.pointLight.intensity * max(0, dot(light_dir, intersect.normal))
@@ -408,23 +409,25 @@ class Raytracer(object):
         
         if material.matType == OPAQUE:
             # Formula de iluminacion, PHONG
-            finalColor = (ambientColor + (1 - shadow_intensity) * (diffuseColor + specColor))
+            finalColor = sum(ambientColor, mul(sum(diffuseColor, specColor), (1 - shadow_intensity)))
+            # finalColor = (ambientColor + (1 - shadow_intensity) * (diffuseColor + specColor))
         elif material.matType == REFLECTIVE:
-            reflect = reflectVector(intersect.normal, V3(direction) * -1)
+            reflect = reflectVector(intersect.normal, mul(direction, -1))
             reflectColor = self.castRay(intersect.point, reflect, intersect.sceneObject, recursion + 1)
             reflectColor = V3(reflectColor[2] / 255,
                                      reflectColor[1] / 255,
                                      reflectColor[0] / 255)
 
-            finalColor = reflectColor + (1 - shadow_intensity) * specColor
+            finalColor = sum(reflectColor, mul(specColor, (1 - shadow_intensity)))
+            # finalColor = reflectColor + (1 - shadow_intensity) * specColor
 
         elif material.matType == TRANSPARENT:
 
             outside = dot(direction, intersect.normal) < 0
-            bias = 0.001 * intersect.normal
+            bias = mul(intersect.normal, 0.001)
             kr = fresnel(intersect.normal, direction, material.ior)
 
-            reflect = reflectVector(intersect.normal, V3(direction) * -1)
+            reflect = reflectVector(intersect.normal, mul(direction, -1))
             reflectOrig = sum(intersect.point, bias) if outside else sub(intersect.point, bias)
             reflectColor = self.castRay(reflectOrig, reflect, None, recursion + 1)
             reflectColor = V3(reflectColor[2] / 255,
@@ -439,13 +442,10 @@ class Raytracer(object):
                                          refractColor[1] / 255,
                                          refractColor[0] / 255)
 
-
-            finalColor = reflectColor * kr + refractColor * (1 - kr) + (1 - shadow_intensity) * specColor
-
-
+            finalColor = sum(mul(reflectColor, kr), sum(mul(refractColor, (1 - kr)), mul(specColor, (1 - shadow_intensity))))
 
         # Le aplicamos el color del objeto
-        finalColor *= objectColor
+        finalColor = multVect(finalColor, objectColor)
 
         #Nos aseguramos que no suba el valor de color de 1
         r = min(1,finalColor[0])
