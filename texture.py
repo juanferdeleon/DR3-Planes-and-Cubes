@@ -36,9 +36,9 @@ class Texture(object):
         for y in range(self.height):
             self.pixels.append([])
             for x in range(self.width):
-                b = ord(img.read(1))
-                g = ord(img.read(1))
-                r = ord(img.read(1))
+                b = ord(img.read(1)) / 255
+                g = ord(img.read(1)) / 255
+                r = ord(img.read(1)) / 255
                 self.pixels[y].append(color(r, g, b))
         
         img.close()
@@ -46,24 +46,13 @@ class Texture(object):
     def getColor(self, tx, ty, intensity = 1):
         '''Get the color of each pixel from BMP file'''
         
-        x = int(tx * self.width)
-        y = int(ty * self.height)
+        if tx >= 0 and tx <= 1 and ty >= 0 and ty <= 1:
+            x = int(tx * self.width - 1)
+            y = int(ty * self.height - 1)
 
-        try:
-            #Return the color in bytes
-            return bytes(
-                map(
-                    lambda b: round(b * intensity) if b * intensity > 0 else 0,
-                    self.pixels[y][x]
-                )
-            )
-        except IndexError:
-            return bytes(
-                map(
-                    lambda t: int(round(t*intensity)) if (t * intensity) > 0 else 0,
-                    self.pixelesBuffer[y-1][x-1]
-                )
-            )
+            return self.pixels[y][x]
+        else:
+            return color(0,0,0)
     
     def getDimensions(self):
         '''Get height and width of BMP'''
