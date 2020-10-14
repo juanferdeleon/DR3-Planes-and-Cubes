@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     boxMat = Material(texture = Texture('box.bmp'))
 
-    earthMat = Material(texture = Texture('earthDay.bmp'))
+    # earthMat = Material(texture = Texture('earthDay.bmp'))
 
 
     width = 512
@@ -33,12 +33,11 @@ if __name__ == '__main__':
     r.glClearColor(0.2, 0.6, 0.8)
     r.glClear()
 
-    r.envmap = Envmap('envmap.bmp')
+    # r.envmap = Envmap('envmap.bmp')
 
     # Lights
-    #r.pointLights.append( PointLight(position = V3(-4,4,0), intensity = 0.5))
-    #r.pointLights.append( PointLight(position = V3( 4,0,0), intensity = 0.5))
-    r.dirLight = DirectionalLight(direction = V3(1, -1, -2), intensity = 0.5)
+    r.pointLights.append( PointLight(position = V3(-4,4,0), intensity = 0.5))
+    # r.dirLight = DirectionalLight(direction = V3(1, -1, -2), intensity = 0.5)
     r.ambientLight = AmbientLight(strength = 0.1)
 
     # Objects
@@ -47,11 +46,14 @@ if __name__ == '__main__':
     #r.scene.append( Sphere(V3( 0.25, 0.5, -5), 0.25, stone))
 
 
-    r.scene.append( AABB(V3(0, -3, -10), V3(5, 0.1, 5) , boxMat ) )
-    #r.scene.append( AABB(V3(1.5, 1.5, -5), V3(1, 1, 1) , boxMat ) )
-    #r.scene.append( AABB(V3(-1.5, 0, -5), V3(1, 1, 1) , boxMat ) )
+    r.scene.append( AABB(V3(0, 0, -5), V3(5, 5, 5) , boxMat, 'room' ) )
+    r.scene.append( AABB(V3(0, -2, -5), V3(1, 1, 1) , boxMat, 'box' ) )
+    r.scene.append( AABB(V3(1, -2, -5.25), V3(1, 1, 1) , boxMat, 'box' ) )
+    r.scene.append( AABB(V3(0.5, -1, -5.5), V3(1, 1, 1) , boxMat, 'box' ) )
+    # r.scene.append( AABB(V3(1.5, 1.5, -5), V3(1, 1, 1) , boxMat ) )
+    # r.scene.append( AABB(V3(-1.5, 0, -5), V3(1, 1, 1) , boxMat ) )
 
-    r.scene.append( Sphere(V3( 0, 0, -8), 2, earthMat))
+    # r.scene.append( Sphere(V3( 0, 0, -8), 2, earthMat))
 
 
 

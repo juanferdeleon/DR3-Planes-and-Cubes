@@ -420,7 +420,7 @@ class Raytracer(object):
             light_dir = div(light_dir, magnitud(light_dir))
 
             # Calculamos el valor del diffuse color
-            intensity = pointLight.intensity * max(0, np.dot(light_dir, intersect.normal))
+            intensity = pointLight.intensity * max(0, dot(light_dir, intersect.normal))
             diffuseColor = V3(intensity * pointLight.color[2] / 255,
                                     intensity * pointLight.color[1] / 255,
                                     intensity * pointLight.color[0] / 255)

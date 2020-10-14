@@ -115,7 +115,7 @@ class Plane(object):
         return None
 
 class AABB(object):
-    def __init__(self, position, size, material):
+    def __init__(self, position, size, material, aabb_type):
         self.position = position
         self.size = size
         self.material = material
@@ -125,15 +125,26 @@ class AABB(object):
         halfSizeY = size[1] / 2
         halfSizeZ = size[2] / 2
 
+        if (aabb_type == 'box'):
+            self.planes.append( Plane( sum(position, V3(halfSizeX,0,0)), V3(1,0,0), material))
+            self.planes.append( Plane( sum(position, V3(-halfSizeX,0,0)), V3(-1,0,0), material))
 
-        self.planes.append( Plane( sum(position, V3(halfSizeX,0,0)), V3(1,0,0), material))
-        self.planes.append( Plane( sum(position, V3(-halfSizeX,0,0)), V3(-1,0,0), material))
+            self.planes.append( Plane( sum(position, V3(0,halfSizeY,0)), V3(0,1,0), material))
+            self.planes.append( Plane( sum(position, V3(0,-halfSizeY,0)), V3(0,-1,0), material))
 
-        self.planes.append( Plane( sum(position, V3(0,halfSizeY,0)), V3(0,1,0), material))
-        self.planes.append( Plane( sum(position, V3(0,-halfSizeY,0)), V3(0,-1,0), material))
+            self.planes.append( Plane( sum(position, V3(0,0,halfSizeZ)), V3(0,0,1), material))
+            self.planes.append( Plane( sum(position, V3(0,0,-halfSizeZ)), V3(0,0,-1), material))
+        
+        elif (aabb_type == 'room'):
+            self.planes.append( Plane( sum(position, V3(halfSizeX,0,0)), V3(1,0,0), material))
+            self.planes.append( Plane( sum(position, V3(-halfSizeX,0,0)), V3(-1,0,0), material))
 
-        self.planes.append( Plane( sum(position, V3(0,0,halfSizeZ)), V3(0,0,1), material))
-        self.planes.append( Plane( sum(position, V3(0,0,-halfSizeZ)), V3(0,0,-1), material))
+            self.planes.append( Plane( sum(position, V3(0,halfSizeY,0)), V3(0,1,0), material))
+            self.planes.append( Plane( sum(position, V3(0,-halfSizeY,0)), V3(0,-1,0), material))
+
+            # self.planes.append( Plane( sum(position, V3(0,0,halfSizeZ)), V3(0,0,1), material))
+            self.planes.append( Plane( sum(position, V3(0,0,-halfSizeZ)), V3(0,0,-1), material))
+
 
     def ray_intersect(self, orig, dir):
 
